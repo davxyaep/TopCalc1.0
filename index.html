@@ -29,9 +29,33 @@
 </head>
 <body class="p-4">
 
-    <div class="container mx-auto max-w-lg bg-white shadow-xl rounded-2xl p-6 md:p-8">
+    <!-- VISUM MODAL POP-UP (Erscheint als erstes) -->
+    <div id="visumModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm transform transition duration-300 scale-100">
+            <h2 class="text-xl font-bold text-teal-700 mb-4 flex items-center">
+                <!-- Icon for Authentication -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-red-500"><path d="M12 21a9 9 0 0 0 9-9c0-3.3-1.6-6.4-4.2-8.3L12 3l-4.8 2.7C6.4 7.6 4 10.7 4 14a9 9 0 0 0 8 7z"></path><path d="M12 8v4l3 3"></path></svg>
+                Visum erforderlich
+            </h2>
+            <p class="text-gray-600 mb-4">Bitte geben Sie Ihr Kürzel (Visum) zur Protokollierung ein, bevor Sie TopCalc verwenden.</p>
+            
+            <label for="modalVisumInput" class="block text-sm mb-1 text-red-700 font-bold">Ihr Kürzel (max. 10 Zeichen)</label>
+            <input type="text" id="modalVisumInput" maxlength="10"
+                   class="w-full p-3 border border-red-400 rounded-lg focus:ring-red-500 focus:border-red-500 transition duration-150"
+                   placeholder="z.B. AB12">
+            <p id="modalVisumError" class="text-red-500 text-xs mt-1 hidden">Eingabe ist obligatorisch.</p>
+
+            <button onclick="setVisumAndCloseModal()"
+                    class="w-full mt-6 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition duration-300 shadow-md shadow-red-500/50">
+                OK
+            </button>
+        </div>
+    </div>
+    
+    <!-- HAUPT INHALT (Wird erst nach Visum-Eingabe sichtbar) -->
+    <div id="mainContent" class="container mx-auto max-w-lg bg-white shadow-xl rounded-2xl p-6 md:p-8 hidden">
         
-        <!-- NEUES HEADING MIT ICON -->
+        <!-- HEADING MIT ICON -->
         <div class="flex items-center mb-2">
             <!-- Calculator SVG Icon (Passend zum Thema Berechnung/Kalkulation) -->
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 mr-3 text-teal-600">
@@ -131,6 +155,36 @@
     </div>
 
     <script>
+        let userVisum = ''; // Globale Variable für das Visum
+
+        /**
+         * Setzt das Visum und schließt das Modal, falls gültig.
+         */
+        function setVisumAndCloseModal() {
+            const visumInput = document.getElementById('modalVisumInput');
+            const visum = visumInput.value.trim();
+            const visumModal = document.getElementById('visumModal');
+            const mainContent = document.getElementById('mainContent');
+            const errorElement = document.getElementById('modalVisumError');
+
+            if (visum === '') {
+                errorElement.classList.remove('hidden');
+                visumInput.classList.add('border-red-600');
+                return;
+            }
+
+            userVisum = visum;
+            errorElement.classList.add('hidden');
+            visumInput.classList.remove('border-red-600');
+            
+            // Modal ausblenden, Hauptinhalt anzeigen
+            visumModal.classList.add('hidden');
+            mainContent.classList.remove('hidden'); 
+            
+            // Führe eine initiale Berechnung durch, um die Standardwerte anzuzeigen
+            calculatePrice();
+        }
+
         /**
          * Gibt den Faktor basierend auf dem Preis inklusive MWSt zurück.
          * @param {number} priceMWSt - Preis inklusive MWSt.
@@ -149,6 +203,8 @@
          * Führt die gesamte Preisberechnung durch und aktualisiert die UI.
          */
         function calculatePrice() {
+            // Prüfung auf Visum ist hier nicht mehr nötig, da calculatePrice erst nach erfolgreichem Modal-Abschluss aufgerufen wird.
+
             const einzelpreisInput = document.getElementById('einzelpreis').value;
             const anzahlPackungenInput = document.getElementById('anzahlPackungen').value;
             const portoInput = document.getElementById('portoInput').value;
@@ -162,6 +218,9 @@
             const PORTO_GESAMT = parseFloat(portoInput) || 2.70;
             const einzelpreis = parseFloat(einzelpreisInput);
             const anzahlPackungen = parseInt(anzahlPackungenInput, 10);
+            
+            // Das Visum wird aus der globalen Variable bezogen
+            const visum = userVisum; 
 
             const stepsDiv = document.getElementById('calculationSteps');
             const resultDiv = document.getElementById('resultOutput');
@@ -246,15 +305,14 @@
          * Öffnet ein neues Fenster mit dem Rechenweg und den Ergebnissen und startet den Druck.
          */
         function printResult() {
-            // Sicherstellen, dass die Berechnung aktuell ist
+            // Sicherstellen, dass die Berechnung aktuell ist und alle Eingaben gültig sind
             calculatePrice();
 
-            if (document.getElementById('resultOutput').classList.contains('hidden')) {
-                // Da wir alert() nicht verwenden dürfen, zeigen wir eine Fehlermeldung in der Konsole an
-                console.error('Fehler: Berechnung fehlgeschlagen oder keine gültigen Eingaben vorhanden. Kann nicht gedruckt werden.');
-                // Optional: Kurze visuelle Rückmeldung auf der Seite geben
-                const stepsDiv = document.getElementById('calculationSteps');
-                stepsDiv.innerHTML = '<p class="text-red-500 font-semibold">Bitte zuerst gültige Werte eingeben und berechnen.</p>';
+            const visum = userVisum; // Visum aus globaler Variable
+
+            if (visum === '' || document.getElementById('resultOutput').classList.contains('hidden')) {
+                // Wenn das Visum aus irgendeinem Grund leer ist (sollte nach Modal-Logik nicht passieren) oder Berechnung fehlgeschlagen, nicht drucken.
+                console.error('Fehler: Visum fehlt oder Berechnung fehlgeschlagen. Kann nicht gedruckt werden.');
                 return;
             }
 
@@ -327,6 +385,7 @@
                     <div class="print-header">
                         <h1>TopCalc - Apotheken Preis-Kontrolle</h1>
                         <p>Kontrollblatt für Apotheker | Datum: ${new Date().toLocaleDateString('de-CH')} | Zeit: ${new Date().toLocaleTimeString('de-CH')}</p>
+                        <p style="font-weight: bold; margin-top: 10px;">Visum / Bearbeiter: <span style="color: #0d9488;">${visum}</span></p>
                     </div>
                 `);
                 
@@ -380,12 +439,13 @@
             }
         }
 
-        // Starte die Berechnung einmal beim Laden mit den Standardwerten
+        // Beim Laden der Seite wird das Modal automatisch angezeigt.
+        // Der Hauptinhalt ist per CSS-Klasse "hidden" im onload() initial ausgeblendet.
         window.onload = function() {
-            calculatePrice();
+            // Optional: Fokus auf das Eingabefeld setzen
+            document.getElementById('modalVisumInput').focus();
         }
 
     </script>
 </body>
 </html>
-
