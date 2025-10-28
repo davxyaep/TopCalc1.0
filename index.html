@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apotheken Preisrechner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .container {
+            min-height: 100vh;
+        }
+        .result-box {
+            background-color: #e6fffa;
+            border-left: 4px solid #38b2ac;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .highlight-value {
+            color: #10b981; /* Green-500 */
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="container mx-auto max-w-lg bg-white shadow-xl rounded-2xl p-6 md:p-8">
+        
+        <!-- NEUES HEADING MIT ICON -->
+        <div class="flex items-center mb-2">
+            <!-- Calculator SVG Icon (Passend zum Thema Berechnung/Kalkulation) -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 mr-3 text-teal-600">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="8" y1="6" x2="16" y2="6"></line>
+                <line x1="16" y1="10" x2="16" y2="18"></line>
+                <line x1="8" y1="10" x2="8" y2="18"></line>
+                <line x1="12" y1="10" x2="12" y2="18"></line>
+                <line x1="4" y1="14" x2="20" y2="14"></line>
+            </svg>
+            <h1 class="text-3xl font-bold text-teal-700">TopCalc</h1>
+        </div>
+        
+        <p class="text-gray-600 mb-6">Fokus: Endpreis pro Artikel (inkl. Porto-Anteil).</p>
+
+        <!-- Eingabefelder -->
+        <div class="space-y-4">
+            <div class="input-group">
+                <label for="einzelpreis" class="block text-sm mb-1">Einzelpreis (CHF)</label>
+                <input type="number" id="einzelpreis" min="0.01" step="0.01" value="15.00"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                       placeholder="z.B. 15.00">
+            </div>
+            <div class="input-group">
+                <label for="anzahlPackungen" class="block text-sm mb-1">Anzahl Packungen</label>
+                <input type="number" id="anzahlPackungen" min="1" step="1" value="3"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                       placeholder="z.B. 3">
+            </div>
+
+            <!-- MWST-FELD -->
+            <div class="input-group pt-2">
+                <label class="block text-sm mb-2">Mehrwertsteuer (MWSt)</label>
+                <div class="flex space-x-6">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" name="mwstRate" value="0.026" checked
+                               class="form-radio text-teal-600 h-4 w-4 border-gray-300 focus:ring-teal-500" onclick="calculatePrice()">
+                        <span class="ml-2 text-gray-700">2.6% (Reduziert)</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" name="mwstRate" value="0.081"
+                               class="form-radio text-teal-600 h-4 w-4 border-gray-300 focus:ring-teal-500" onclick="calculatePrice()">
+                        <span class="ml-2 text-gray-700">8.1% (Standard)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- PORTO-FELD -->
+            <div class="input-group pt-2">
+                <label for="portoInput" class="block text-sm mb-1">Porto (Gesamt-Wert in CHF)</label>
+                <input type="number" id="portoInput" min="0.00" step="0.01" value="2.70"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                       placeholder="Standard: 2.70">
+            </div>
+        </div>
+
+        <!-- Berechnen Button -->
+        <button onclick="calculatePrice()"
+                class="w-full mt-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 rounded-xl transition duration-300 shadow-md shadow-teal-500/50">
+            Endpreis Pro Artikel Berechnen
+        </button>
+        
+        <!-- Drucken Button NEU -->
+        <button onclick="printResult()"
+                class="w-full mt-3 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl transition duration-300 shadow-md shadow-gray-500/50">
+            Ergebnis drucken (für Apotheke)
+        </button>
+
+        <!-- Ergebnis-Anzeige -->
+        <div id="resultOutput" class="mt-8 hidden">
+            <div class="result-box p-4 rounded-lg space-y-3">
+                
+                <p class="text-lg font-bold text-teal-800 border-b pb-2">Endpreis des Artikels (Summe nach Porto-Anteil)</p>
+
+                <!-- Ungerundeter Preis -->
+                <div>
+                    <p class="text-sm text-gray-700">1. Ungerundeter Endpreis:</p>
+                    <p id="rawPrice" class="text-2xl font-extrabold highlight-value mt-0.5"></p>
+                </div>
+                
+                <!-- Aufgerundeter Preis -->
+                <div>
+                    <p class="text-sm text-red-600 font-semibold">2. Aufgerundeter Endpreis (auf den nächsten Rappen):</p>
+                    <p id="roundedPrice" class="text-4xl font-extrabold text-teal-900 mt-1"></p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Rechenweg -->
+        <div class="mt-8">
+            <h2 class="text-xl font-bold text-gray-700 mb-3 border-b pb-2">Detaillierter Rechenweg pro Artikel</h2>
+            <div id="calculationSteps" class="space-y-3 text-gray-700 text-sm">
+                <p class="text-gray-500">Bitte geben Sie Werte ein und klicken Sie auf 'Berechnen'.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Gibt den Faktor basierend auf dem Preis inklusive MWSt zurück.
+         * @param {number} priceMWSt - Preis inklusive MWSt.
+         * @returns {number} Der entsprechende Faktor.
+         */
+        function getFactor(priceMWSt) {
+            if (priceMWSt < 12.00) return 1.754;
+            if (priceMWSt < 30.00) return 1.667;
+            if (priceMWSt < 60.00) return 1.613;
+            if (priceMWSt < 150.00) return 1.538;
+            if (priceMWSt < 500.00) return 1.492;
+            return 1.333; // >= 500 CHF
+        }
+
+        /**
+         * Führt die gesamte Preisberechnung durch und aktualisiert die UI.
+         */
+        function calculatePrice() {
+            const einzelpreisInput = document.getElementById('einzelpreis').value;
+            const anzahlPackungenInput = document.getElementById('anzahlPackungen').value;
+            const portoInput = document.getElementById('portoInput').value;
+            
+            // MWSt-Rate lesen
+            const selectedMwstElement = document.querySelector('input[name="mwstRate"]:checked');
+            const mwstRate = parseFloat(selectedMwstElement ? selectedMwstElement.value : 0.026); 
+            const mwstPercentage = (mwstRate * 100).toFixed(1); // Für die Anzeige im Rechenweg
+
+            // Porto und andere Eingaben
+            const PORTO_GESAMT = parseFloat(portoInput) || 2.70;
+            const einzelpreis = parseFloat(einzelpreisInput);
+            const anzahlPackungen = parseInt(anzahlPackungenInput, 10);
+
+            const stepsDiv = document.getElementById('calculationSteps');
+            const resultDiv = document.getElementById('resultOutput');
+            const rawPriceSpan = document.getElementById('rawPrice');
+            const roundedPriceSpan = document.getElementById('roundedPrice');
+            
+            stepsDiv.innerHTML = '';
+            resultDiv.classList.add('hidden');
+
+            if (isNaN(einzelpreis) || einzelpreis <= 0 || isNaN(anzahlPackungen) || anzahlPackungen < 1) {
+                stepsDiv.innerHTML = '<p class="text-red-500 font-semibold">Bitte gültige Werte für Einzelpreis ( > 0) und Packungsanzahl ( > 0) eingeben.</p>';
+                return;
+            }
+
+            // --- A. Berechne Preis + Mehrwertsteuer ---
+            const preisMWSt = Math.round(einzelpreis * (1 + mwstRate) * 10000) / 10000;
+            
+            const step1 = `1. <span class="font-semibold">Einzelpreis inkl. ${mwstPercentage}% MWSt:</span><br>
+                           ${einzelpreis.toFixed(2)} CHF * ${(1 + mwstRate).toFixed(3)} = <span class="font-bold text-teal-600">${preisMWSt.toFixed(4)} CHF</span>`;
+            stepsDiv.innerHTML += `<p>${step1}</p>`;
+
+            // --- B. Faktor bestimmen und Zwischensumme berechnen ---
+            const faktor = getFactor(preisMWSt);
+            const zwischensummeProPaket = preisMWSt * faktor;
+
+            const factorSteps = [
+                { limit: 11.99, factor: 1.754, text: "0 - 11.99 CHF (Faktor 1.754)" },
+                { limit: 29.99, factor: 1.667, text: "12.00 - 29.99 CHF (Faktor 1.667)" },
+                { limit: 59.99, factor: 1.613, text: "30.00 - 59.99 CHF (Faktor 1.613)" },
+                { limit: 149.99, factor: 1.538, text: "60.00 - 149.99 CHF (Faktor 1.538)" },
+                { limit: 499.99, factor: 1.492, text: "150.00 - 499.99 CHF (Faktor 1.492)" },
+                { limit: Infinity, factor: 1.333, text: "Ab 500.00 CHF (Faktor 1.333)" }
+            ].find(f => faktor === f.factor);
+
+
+            const step2 = `2. <span class="font-semibold">Faktor bestimmen und Zwischensumme berechnen:</span><br>
+                           Gewählter Faktor: <span class="font-bold text-teal-600">${faktor}</span> (${factorSteps ? factorSteps.text : ''})<br>
+                           Zwischensumme pro Paket (ohne Porto):<br>
+                           ${preisMWSt.toFixed(4)} CHF * ${faktor} = <span class="font-bold text-teal-600">${zwischensummeProPaket.toFixed(4)} CHF</span>`;
+            stepsDiv.innerHTML += `<div class="pt-3 border-t border-gray-100">${step2}</div>`;
+
+
+            // --- C. Porto-Anteil pro Paket berechnen ---
+            let portoAnteil = PORTO_GESAMT / anzahlPackungen;
+            let portoText;
+
+            if (anzahlPackungen > 2) {
+                // Regel: Bei mehr als zwei Produkten wird das Porto geteilt
+                portoText = `Gesamtporto (${PORTO_GESAMT.toFixed(2)} CHF) geteilt durch ${anzahlPackungen} Produkte (Regel: > 2 Produkte):<br>
+                             ${PORTO_GESAMT.toFixed(2)} CHF / ${anzahlPackungen} = <span class="font-bold text-red-500">${portoAnteil.toFixed(4)} CHF</span>`;
+            } else {
+                portoText = `Gesamtporto (${PORTO_GESAMT.toFixed(2)} CHF) geteilt durch ${anzahlPackungen} Produkte (Anteil für jedes Paket):<br>
+                             ${PORTO_GESAMT.toFixed(2)} CHF / ${anzahlPackungen} = <span class="font-bold text-red-500">${portoAnteil.toFixed(4)} CHF</span>`;
+            }
+
+            const step3 = `3. <span class="font-semibold">Porto-Anteil pro Paket:</span><br>
+                           ${portoText}`;
+            stepsDiv.innerHTML += `<div class="pt-3 border-t border-gray-100">${step3}</div>`;
+
+
+            // --- D. Endpreis pro Paket (Rohwert) und Aufrundung berechnen ---
+            const endpreisProPaketRaw = zwischensummeProPaket + portoAnteil;
+
+            // Aufrundung auf den nächsten Rappen (0.01 CHF)
+            const endpreisProPaketRounded = Math.ceil(endpreisProPaketRaw * 100) / 100;
+
+
+            const step4 = `4. <span class="font-semibold">Endpreis pro Artikel (Ungerundet):</span><br>
+                           Zwischensumme (${zwischensummeProPaket.toFixed(4)} CHF) + Porto-Anteil (${portoAnteil.toFixed(4)} CHF) = <span class="font-bold text-teal-600">${endpreisProPaketRaw.toFixed(6)} CHF</span><br>
+                           <span class="font-semibold">Aufrundung:</span><br>
+                           ${endpreisProPaketRaw.toFixed(6)} CHF aufgerundet auf den nächsten Rappen (0.01 CHF) = <span class="text-xl font-extrabold text-teal-800">${endpreisProPaketRounded.toFixed(2)} CHF</span>`;
+            stepsDiv.innerHTML += `<div class="pt-3 border-t border-gray-100">${step4}</div>`;
+            
+            // --- UI aktualisieren ---
+            rawPriceSpan.textContent = `${endpreisProPaketRaw.toFixed(6)} CHF`; // Zeigt mehr Dezimalstellen für "ungekürzt"
+            roundedPriceSpan.textContent = `${endpreisProPaketRounded.toFixed(2)} CHF`;
+            resultDiv.classList.remove('hidden');
+        }
+
+
+        /**
+         * Öffnet ein neues Fenster mit dem Rechenweg und den Ergebnissen und startet den Druck.
+         */
+        function printResult() {
+            // Sicherstellen, dass die Berechnung aktuell ist
+            calculatePrice();
+
+            if (document.getElementById('resultOutput').classList.contains('hidden')) {
+                // Da wir alert() nicht verwenden dürfen, zeigen wir eine Fehlermeldung in der Konsole an
+                console.error('Fehler: Berechnung fehlgeschlagen oder keine gültigen Eingaben vorhanden. Kann nicht gedruckt werden.');
+                // Optional: Kurze visuelle Rückmeldung auf der Seite geben
+                const stepsDiv = document.getElementById('calculationSteps');
+                stepsDiv.innerHTML = '<p class="text-red-500 font-semibold">Bitte zuerst gültige Werte eingeben und berechnen.</p>';
+                return;
+            }
+
+            const printWindow = window.open('', 'PRINT', 'height=600,width=800');
+            
+            if (printWindow) {
+                // Dynamische Inhalte abrufen
+                const rawPrice = document.getElementById('rawPrice').innerHTML;
+                const roundedPrice = document.getElementById('roundedPrice').innerHTML;
+                const calculationSteps = document.getElementById('calculationSteps').innerHTML;
+
+                // Input-Zusammenfassung abrufen
+                const einzelpreis = document.getElementById('einzelpreis').value;
+                const anzahlPackungen = document.getElementById('anzahlPackungen').value;
+                const mwstText = document.querySelector('input[name="mwstRate"]:checked').nextElementSibling.textContent;
+                const porto = document.getElementById('portoInput').value;
+
+
+                printWindow.document.write('<html><head><title>TopCalc Kontrollblatt</title>');
+                printWindow.document.write(`
+                    <style>
+                        body { font-family: 'Inter', sans-serif; padding: 25px; color: #333; }
+                        .print-header { 
+                            text-align: center; 
+                            padding: 10px; 
+                            border-bottom: 2px solid #0d9488; /* Teal */
+                            margin-bottom: 25px; 
+                        }
+                        .print-header h1 { font-size: 28px; color: #0f766e; margin-bottom: 5px; }
+                        .print-header p { font-size: 14px; color: #555; }
+                        
+                        .result-box-print {
+                            background-color: #e6fffa;
+                            border: 1px solid #38b2ac;
+                            border-left: 5px solid #38b2ac;
+                            padding: 15px;
+                            border-radius: 8px;
+                            margin-bottom: 25px;
+                        }
+                        .result-box-print p { margin: 5px 0; }
+                        .result-box-print .text-4xl { font-size: 36px; font-weight: 800; color: #0f766e; }
+                        
+                        .print-steps h2, .print-input h2 { 
+                            font-size: 18px; 
+                            font-weight: 700; 
+                            color: #2d3748; 
+                            border-bottom: 1px solid #ccc; 
+                            padding-bottom: 5px; 
+                            margin-bottom: 15px; 
+                        }
+                        .print-steps p { 
+                            margin-bottom: 12px; 
+                            line-height: 1.4;
+                            padding-left: 5px;
+                        }
+                        .font-bold { font-weight: 700; }
+                        .text-teal-600 { color: #0d9488; }
+                        .text-red-500 { color: #ef4444; }
+                        .highlight-value-print { color: #10b981; font-weight: 800; }
+
+                        @media print {
+                            body { font-size: 12pt; }
+                        }
+                    </style>
+                `);
+                printWindow.document.write('</head><body>');
+                
+                // 1. Header
+                printWindow.document.write(`
+                    <div class="print-header">
+                        <h1>TopCalc - Apotheken Preis-Kontrolle</h1>
+                        <p>Kontrollblatt für Apotheker | Datum: ${new Date().toLocaleDateString('de-CH')} | Zeit: ${new Date().toLocaleTimeString('de-CH')}</p>
+                    </div>
+                `);
+                
+                // 2. Results
+                printWindow.document.write(`
+                    <div class="result-box-print">
+                        <p style="font-size: 1.125rem; font-weight: bold; color: #065f46; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Endpreis des Artikels (Summe nach Porto-Anteil)</p>
+                        <div style="margin-top: 10px;">
+                            <p style="font-size: 14px; color: #555;">1. Ungerundeter Endpreis:</p>
+                            <p style="font-size: 24px; font-weight: 800; color: #10b981;">${rawPrice}</p>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <p style="font-size: 14px; font-weight: bold; color: #dc2626;">2. Aufgerundeter Endpreis (auf den nächsten Rappen):</p>
+                            <p class="text-4xl">${roundedPrice}</p>
+                        </div>
+                    </div>
+                `);
+                
+                // 3. Input Summary
+                printWindow.document.write(`
+                    <div class="print-input" style="margin-bottom: 25px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
+                        <h2>Verwendete Eingabedaten</h2>
+                        <ul style="list-style: none; padding: 0; font-size: 14px;">
+                            <li style="margin-bottom: 5px; padding-left: 5px;"><strong>Einzelpreis:</strong> ${einzelpreis} CHF</li>
+                            <li style="margin-bottom: 5px; padding-left: 5px;"><strong>Anzahl Packungen:</strong> ${anzahlPackungen}</li>
+                            <li style="margin-bottom: 5px; padding-left: 5px;"><strong>Angewandte MWSt:</strong> ${mwstText}</li>
+                            <li style="margin-bottom: 5px; padding-left: 5px;"><strong>Gesamt-Porto:</strong> ${porto} CHF</li>
+                        </ul>
+                    </div>
+                `);
+
+                // 4. Calculation Steps
+                printWindow.document.write(`
+                    <div class="print-steps">
+                        <h2>Detaillierter Rechenweg pro Artikel</h2>
+                        ${calculationSteps}
+                    </div>
+                `);
+
+
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                printWindow.focus();
+                
+                // Nach einer kurzen Verzögerung drucken (um sicherzustellen, dass alles gerendert ist)
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500); 
+
+            }
+        }
+
+        // Starte die Berechnung einmal beim Laden mit den Standardwerten
+        window.onload = function() {
+            calculatePrice();
+        }
+
+    </script>
+</body>
+</html>
+
